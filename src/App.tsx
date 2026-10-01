@@ -6,6 +6,9 @@ import { Login } from './pages/login.tsx'
 import { ActivityList } from './pages/activity-list.tsx'
 import { DraftPage } from './pages/draft.tsx'
 import { ActivityDetail } from './pages/activity-detail.tsx'
+import { ClaimsPage } from './pages/claims.tsx'
+import { ClaimFormPage } from './pages/claim-form.tsx'
+import { ClaimDetailPage } from './pages/claim-detail.tsx'
 import { Configuration } from './pages/configuration.tsx'
 import { EmptyState } from './components/shared.tsx'
 import { Button } from './components/ui/button.tsx'
@@ -24,6 +27,10 @@ const router = createBrowserRouter([
     { path: '/activities/new/:domain', element: <DraftPage /> },
     { path: '/activities/:id', element: <ActivityDetail /> },
     { path: '/activities/:id/edit', element: <DraftPage /> },
+    { path: '/incentives', element: <ClaimsPage /> },
+    { path: '/incentives/new', element: <ClaimFormPage /> },
+    { path: '/incentives/:id', element: <ClaimDetailPage /> },
+    { path: '/incentives/:id/edit', element: <ClaimFormPage /> },
     { path: '/configuration', element: <Configuration /> },
     { path: '*', element: <EmptyState title="Halaman tidak ditemukan" description="Alamat ini belum tersedia. Kembali ke dashboard untuk melanjutkan." action={<Button asChild><Link to="/dashboard">Kembali ke dashboard</Link></Button>} /> },
   ] },

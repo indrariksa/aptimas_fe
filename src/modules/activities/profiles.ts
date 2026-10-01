@@ -1,5 +1,6 @@
 import { schemes } from './data.ts'
 import type { Activity, DemoUser, DraftValues, Domain } from './model.ts'
+import { latestPolicy, policyById } from '../configuration/store.ts'
 
 export const wizardSteps = ['Identitas', 'Tim Pengusul', 'Substansi', 'Pendanaan & Jadwal', 'Dokumen', 'Rencana Luaran', 'Pratinjau']
 export const sectionLabels: Record<string, string> = {
@@ -27,7 +28,12 @@ export const formProfiles = Object.fromEntries(schemes.map(scheme => [scheme.id,
   windows: { proposal: ['2026-09-01', '2026-10-31'], revision: ['2026-09-01', '2026-12-31'], report: ['2026-09-01', '2026-12-31'], output: ['2026-09-01', '2026-12-31'] },
   revisionTarget: 'UNDER_REVIEW' as const,
 }]))
-export function profileFor(id: string) { return formProfiles[id] }
+export function profileFor(id: string, versionId?: string | null) {
+  const baseline = formProfiles[id], policy = versionId === undefined ? latestPolicy('WORKFLOW', id) : policyById(versionId)
+  if (!policy || policy.kind !== 'WORKFLOW' || policy.scope !== id) return baseline
+  const cap = decimalUnits(policy.profile.budgetCap, 2)
+  return { ...baseline, id: policy.id, maxWords: policy.profile.maxWords, summaryWords: policy.profile.summaryWords, budgetCap: cap === null ? baseline.budgetCap : Number(cap) / 100, windows: policy.profile.windows }
+}
 export function words(value: string) { return value.trim() ? value.trim().split(/\s+/).length : 0 }
 export function keywordList(value: string) { return value.split(',').map(item => item.trim()).filter(Boolean) }
 export function decimalUnits(value: string, precision: number): bigint | null {
@@ -46,19 +52,19 @@ export function budgetCents(items: DraftValues['proposal']['budget']) {
   for (const item of items) { const amount = lineCents(item); if (amount === null || !Number.isSafeInteger(total + amount)) return null; total += amount }
   return total
 }
-export function windowOpen(id: string, stage: 'proposal' | 'revision' | 'report' | 'output', now = new Date()) {
-  const window = profileFor(id)?.windows[stage]
+export function windowOpen(id: string, stage: 'proposal' | 'revision' | 'report' | 'output', now = new Date(), versionId?: string | null) {
+  const window = profileFor(id, versionId)?.windows[stage]
   const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   return !!window && date >= window[0] && date <= window[1]
 }
 export function canRecord(activity: Activity, user: DemoUser, stage: 'report' | 'output') {
-  return user.role === 'DOSEN' && activity.ownerId === user.id && windowOpen(activity.schemeVersionId, stage) && (stage === 'report' ? activity.status === 'IN_PROGRESS' : ['IN_PROGRESS', 'PROGRESS_SUBMITTED', 'FINAL_SUBMITTED', 'OUTPUT_PENDING'].includes(activity.status))
+  return user.role === 'DOSEN' && activity.ownerId === user.id && windowOpen(activity.schemeVersionId, stage, new Date(), activity.profileVersionId) && (stage === 'report' ? activity.status === 'IN_PROGRESS' : ['IN_PROGRESS', 'PROGRESS_SUBMITTED', 'FINAL_SUBMITTED', 'OUTPUT_PENDING'].includes(activity.status))
 }
 export type ProposalIssue = { path: string; message: string; step: number }
-export function proposalIssues(values: DraftValues, user: DemoUser): ProposalIssue[] {
+export function proposalIssues(values: DraftValues, user: DemoUser, versionId?: string | null): ProposalIssue[] {
   const issues: ProposalIssue[] = []
   const add = (path: string, message: string, step: number) => issues.push({ path, message, step })
-  const profile = profileFor(values.schemeVersionId), scheme = schemes.find(item => item.id === values.schemeVersionId)
+  const profile = profileFor(values.schemeVersionId, versionId), scheme = schemes.find(item => item.id === values.schemeVersionId)
   if (!profile || !scheme) { add('schemeVersionId', 'Pilih skema yang tersedia.', 0); return issues }
   const p = values.proposal
   if (values.title.trim().length < 8) add('title', 'Judul minimal 8 karakter untuk pengajuan.', 0)

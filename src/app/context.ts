@@ -1,11 +1,13 @@
 import { createContext, useContext } from 'react'
 import type { Activity, DemoUser, Role } from '../modules/activities/model.ts'
+import type { Claim } from '../modules/incentives/model.ts'
 
 interface AppState {
   user: DemoUser | null; activities: Activity[]; loading: boolean; error: string;
   login: (role: Role) => void; logout: () => void; reload: () => Promise<void>;
   notify: (message: string) => void;
   hasUnsavedChanges: boolean; setUnsavedChanges: (dirty: boolean) => void;
+  claims: Claim[]; claimsLoading: boolean; claimsError: string; reloadClaims: () => Promise<void>;
 }
 export const AppContext = createContext<AppState | null>(null)
 export const demoMode = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true'

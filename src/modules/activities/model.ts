@@ -43,6 +43,8 @@ export const reportSchema = z.object({ kind: z.enum(['PROGRESS_REPORT', 'FINAL_R
 export type ReportInput = z.infer<typeof reportSchema>
 export const realizationSchema = z.object({ id: z.string(), planIndex: z.number().int().nonnegative(), title: z.string().trim().min(3).max(300), status: z.enum(['DRAFT', 'SUBMITTED', 'PUBLISHED', 'REGISTERED', 'ACHIEVED']), date: z.iso.date({ error: 'Isi tanggal capaian yang valid.' }), note: z.string().max(2000), files: z.array(fileSchema).min(1, 'Unggah bukti capaian.').max(10), updatedAt: z.string().datetime().optional() })
 export type Realization = z.infer<typeof realizationSchema>
+export const activityReviewSchema = z.object({ reviewerId: z.string(), stage: z.enum(['PROPOSAL', 'PROGRESS_REPORT', 'FINAL_REPORT', 'OUTPUT']), submissionVersion: z.number().int().positive(), policyId: z.string(), scores: z.record(z.string(), z.number().nonnegative()), comment: z.string().max(5000), recommendation: z.enum(['', 'CONTINUE', 'REVISION', 'REJECT']) })
+export type ActivityReview = z.infer<typeof activityReviewSchema>
 
 export const activitySchema = z.object({
   id: z.string().min(1), code: z.string().min(1), ownerId: z.string().min(1), ownerName: z.string().min(1),
@@ -59,6 +61,9 @@ export const activitySchema = z.object({
   reports: z.array(reportSchema.extend({ version: z.number().int().positive(), at: z.string().datetime(), actor: z.string() })).default([]),
   realizations: z.array(realizationSchema).default([]),
   outputHistory: z.array(z.object({ version: z.number().int().positive(), at: z.string().datetime(), actor: z.string(), values: realizationSchema })).default([]),
+  profileVersionId: z.string().nullable().default(null), workflowPolicyId: z.string().nullable().default(null),
+  reviewDrafts: z.array(activityReviewSchema).default([]), reviews: z.array(activityReviewSchema.extend({ at: z.string().datetime(), actor: z.string() })).default([]),
+  externalUpdates: z.array(z.object({ at: z.string().datetime(), actor: z.string(), status: z.string(), url: z.string(), evidenceDate: z.iso.date(), files: z.array(fileSchema), funded: z.boolean(), sourceOfTruth: z.literal('EXTERNAL_MANUAL') })).default([]),
 })
 export type Activity = z.infer<typeof activitySchema>
 

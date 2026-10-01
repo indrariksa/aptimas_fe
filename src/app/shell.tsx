@@ -71,14 +71,15 @@ function Shell() {
           </DropdownMenu>
           <Link to={`/activities?domain=${domainPaths.COMMUNITY_SERVICE}`} className={`nav-item ${selectedDomain === 'community-service' || location.pathname.endsWith('/new/community-service') || detailDomain === 'COMMUNITY_SERVICE' ? 'active' : ''}`}>Pengabdian</Link>
           <Link to={`/activities?domain=${domainPaths.INNOVATION}`} className={`nav-item ${selectedDomain === 'innovation' || location.pathname.endsWith('/new/innovation') || detailDomain === 'INNOVATION' ? 'active' : ''}`}>Inovasi</Link>
-          <span className="nav-future" title="Form dan klaim tersedia pada Fase 3">Insentif Kepakaran<small>Fase 3</small></span>
+          <DropdownMenu align="start" trigger={<button className={`nav-item ${location.pathname.startsWith('/incentives') ? 'active' : ''}`}>Insentif Kepakaran<ChevronDown size={14} /></button>}><DropdownMenuItem onSelect={() => { setMobileOpen(false); navigate('/incentives') }}>Daftar Klaim</DropdownMenuItem><DropdownMenuItem onSelect={() => { setMobileOpen(false); navigate('/incentives/new') }}>Ajukan Klaim Baru</DropdownMenuItem><DropdownMenuItem onSelect={() => { setMobileOpen(false); navigate('/incentives?view=history') }}>Riwayat Klaim</DropdownMenuItem></DropdownMenu>
           <span className="nav-future" title="Pencatatan karya tersedia pada Fase 4">Karya Cipta<small>Fase 4</small></span>
         </> : <>
           <Link to={isReviewer ? '/activities?view=assignments' : '/activities'} className={`nav-item ${location.pathname.startsWith('/activities') && selectedView !== 'review-history' && selectedView !== 'recap' ? 'active' : ''}`}>{isReviewer ? <ClipboardList size={17} /> : <FolderOpen size={17} />}{isReviewer ? 'Penugasan Review' : 'Monitoring Kegiatan'}</Link>
           <Link to={isReviewer ? '/activities?view=review-history' : '/activities?view=recap'} className={`nav-item ${selectedView === (isReviewer ? 'review-history' : 'recap') ? 'active' : ''}`}>{isReviewer ? 'Riwayat Review' : 'Rekapitulasi'}</Link>
+          {!isReviewer && <Link to="/incentives" className={`nav-item ${location.pathname.startsWith('/incentives') ? 'active' : ''}`}>Insentif & Rekap</Link>}
           {!isReviewer && <span className="nav-future">Persetujuan<small>Menunggu SOP</small></span>}
           {user.role === 'ADMIN' && <NavLink to="/configuration" className={navClass}><Settings size={17} />Konfigurasi Demo</NavLink>}
-          {isReviewer && <span className="nav-future">Review Insentif<small>Fase 3</small></span>}
+          {isReviewer && <Link to="/incentives" className={`nav-item ${location.pathname.startsWith('/incentives') ? 'active' : ''}`}>Review Insentif</Link>}
         </>}
         {isDosen && <Link to="/activities?view=history" className={`nav-item ${selectedView === 'history' ? 'active' : ''}`}>Riwayat Pengajuan</Link>}
         <button className="nav-help" onClick={() => { setMobileOpen(false); setHelpOpen(true) }} aria-label="Bantuan penggunaan demo"><HelpCircle size={18} /><span>Bantuan</span></button>
@@ -87,7 +88,7 @@ function Shell() {
     <main id="main-content" className="container main-content" tabIndex={-1} key={user.id}><Outlet /></main>
     <footer className="footer"><div className="container footer-inner"><span>© 2026 APTIMAS <span className="footer-separator">/</span> LPPM ULBI</span><span>Portal Penelitian, Pengabdian & Inovasi<span className="footer-demo">Frontend demo</span></span></div></footer>
     <Dialog open={helpOpen} onOpenChange={setHelpOpen} title="Menggunakan demo APTIMAS" description="Semua akun, pengajuan, jadwal, dan angka pada aplikasi ini merupakan data simulasi.">
-      <ol className="help-list"><li>Gunakan menu profil untuk memilih role demo.</li><li>Cari dan filter pengajuan. Klik judul untuk membuka detail.</li><li>Akun Dosen dapat mengisi tujuh langkah pengajuan Penelitian, PKM, dan Inovasi. Simpan draft sebelum berpindah halaman.</li><li>Proposal, laporan, dan bukti luaran tersimpan lokal. Insentif tersedia pada Fase 3; review dan Karya Cipta pada Fase 4.</li></ol>
+      <ol className="help-list"><li>Gunakan menu profil untuk memilih role demo.</li><li>Cari dan filter pengajuan. Klik judul untuk membuka detail.</li><li>Akun Dosen dapat mengisi tujuh langkah pengajuan Penelitian, PKM, dan Inovasi. Simpan draft sebelum berpindah halaman.</li><li>Proposal, laporan, dan bukti luaran tersimpan lokal. Sepuluh formulir Insentif dan checklist reviewer tersedia lokal. Tarif/approval menunggu SK/SOP; review kegiatan dan Karya Cipta tersedia pada Fase 4.</li></ol>
       <p className="notice-text">Tidak ada pengiriman ke BIMA, Hiliriset, atau server lain. Login ini merupakan simulasi, bukan autentikasi produksi.</p>
       {error && <p className="field-error">{error}</p>}
       <Button onClick={() => setHelpOpen(false)}>Mengerti<ChevronRight size={16} /></Button>

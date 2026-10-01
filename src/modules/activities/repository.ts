@@ -4,8 +4,10 @@ import { schemes, seedActivities } from './data.ts'
 import { canEditDraft } from './rules.ts'
 import { budgetCents, canRecord, profileFor, proposalIssues, windowOpen } from './profiles.ts'
 import { ensureFiles } from './files.ts'
+import { latestPolicy } from '../configuration/store.ts'
 
 export const ACTIVITY_STORAGE_KEY = 'aptimas.demo.activities.v1'
+export { read as readActivities, replace as replaceActivity }
 function read(): Activity[] {
   const stored = localStorage.getItem(ACTIVITY_STORAGE_KEY)
   if (!stored) return structuredClone(seedActivities)
@@ -25,8 +27,9 @@ async function saveProposal(input: DraftInput, user: DemoUser, id: string | unde
   if (user.role !== 'DOSEN') throw new Error('Hanya akun Dosen yang dapat menyimpan pengajuan.')
   const values = draftSchema.parse(input), scheme = schemes.find(item => item.id === values.schemeVersionId)
   if (!scheme) throw new Error('Skema tidak tersedia pada periode ini.')
+  const frozenProfile = id ? read().find(item => item.id === id)?.profileVersionId : latestPolicy('WORKFLOW', scheme.id)?.id ?? null
   if (submit) {
-    const issues = proposalIssues(values, user)
+    const issues = proposalIssues(values, user, frozenProfile)
     if (issues.length) throw new Error(issues[0].message)
     await ensureFiles(values.proposal.files)
   }
@@ -36,7 +39,7 @@ async function saveProposal(input: DraftInput, user: DemoUser, id: string | unde
     checkVersion(previous, expectedVersion)
     if (previous.schemeVersionId !== scheme.id) throw new Error('Versi skema pada draft sudah dibekukan. Buat pengajuan baru untuk memilih skema lain.')
   }
-  if (submit && !windowOpen(scheme.id, previous && previous.status !== 'DRAFT' ? 'revision' : 'proposal')) throw new Error('Window pengajuan/revisi simulasi sedang ditutup. Draft tetap dapat disimpan.')
+  if (submit && !windowOpen(scheme.id, previous && previous.status !== 'DRAFT' ? 'revision' : 'proposal', new Date(), frozenProfile)) throw new Error('Window pengajuan/revisi simulasi sedang ditutup. Draft tetap dapat disimpan.')
   const at = new Date().toISOString(), correction = !!previous && previous.status !== 'DRAFT'
   const status = submit ? previous?.status === 'NEEDS_CORRECTION' ? 'ADMIN_CHECK' : correction ? profileFor(scheme.id).revisionTarget : 'SUBMITTED' : previous?.status ?? 'DRAFT'
   const total = budgetCents(values.proposal.budget)
@@ -48,6 +51,7 @@ async function saveProposal(input: DraftInput, user: DemoUser, id: string | unde
     requestedAmount: values.proposal.budget.length && total !== null ? total / 100 : null, approvedAmount: previous?.approvedAmount ?? null,
     reviewerIds: previous?.reviewerIds ?? [], note: previous?.note ?? '', version: (previous?.version ?? 0) + 1,
     proposal: values.proposal, plannedOutputs: values.proposal.outputs.map(item => ({ title: item.title, achieved: false })),
+    profileVersionId: frozenProfile,
     submissions: submit ? [...(previous?.submissions ?? []), { version: (previous?.submissions.length ?? 0) + 1, kind: correction ? 'PROPOSAL_REVISION' : 'PROPOSAL', at, actor: user.name, values: structuredClone(values) }] : previous?.submissions ?? [],
     history: [...(previous?.history ?? []), { at, actor: user.name, description: submit ? correction ? 'Revisi proposal diajukan (simulasi).' : 'Proposal diajukan (simulasi).' : previous ? 'Draft kegiatan disimpan.' : 'Draft kegiatan dibuat.' }],
   })
