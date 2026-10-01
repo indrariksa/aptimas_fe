@@ -2,6 +2,13 @@
 
 Frontend portal akademik ULBI berdasarkan PRD v1.1 dan screenshot BIMA. Fase 1–4 memakai data simulasi lokal, tanpa backend, REST API, atau pengiriman data ke portal nasional.
 
+## Dokumentasi pengguna
+
+- [Panduan penggunaan per peran](docs/PANDUAN_PENGGUNA_APTIMAS_FE.md): login, konfigurasi SK/SOP, pengajuan, review, keputusan, batch, karya, dan pemulihan lokal.
+- [Kesesuaian terhadap PRD v1.1](docs/KESESUAIAN_PRD_APTIMAS_FE.md): matriks kebutuhan, bukti implementasi, batas pengujian, dan fitur yang masih parsial/belum tersedia.
+
+Dokumentasi mengikuti FE sampai Fase 4. Alur utama mengikuti PRD, tetapi aplikasi belum memenuhi kebutuhan produk lengkap. Fase 5 ditunda sesuai permintaan pengguna.
+
 ## Menjalankan
 
 Gunakan Node.js 22.14 atau lebih baru yang memenuhi persyaratan Vite pada lockfile.
