@@ -6,9 +6,9 @@ import { moneyLabel } from '../../lib/utils.ts'
 import type { DraftValues } from './model.ts'
 import { budgetCents, lineCents, profileFor, type ProposalIssue } from './profiles.ts'
 
-export function BudgetForm({ form, issues }: { form: UseFormReturn<DraftValues>; issues: ProposalIssue[] }) {
+export function BudgetForm({ form, issues, profileVersionId }: { form: UseFormReturn<DraftValues>; issues: ProposalIssue[]; profileVersionId?: string | null }) {
   const { control, register, watch } = form
-  const budget = useFieldArray({ control, name: 'proposal.budget' }), items = watch('proposal.budget'), profile = profileFor(watch('schemeVersionId'))
+  const budget = useFieldArray({ control, name: 'proposal.budget' }), items = watch('proposal.budget'), profile = profileFor(watch('schemeVersionId'), profileVersionId)
   const errorFor = (path: string) => issues.find(item => item.path === path)?.message
   const total = budgetCents(items), groups = new Map<string, number | null>()
   items.forEach(item => { const key = item.category || 'Komponen belum dipilih', amount = lineCents(item), previous = groups.get(key) ?? 0; groups.set(key, amount === null || (amount !== null && !Number.isSafeInteger(previous + amount)) || (groups.has(key) && groups.get(key) === null) ? null : previous + amount) })

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { checkIncentives } from './incentive-check.ts'
+import { checkPhaseFour } from './phase-four-check.ts'
 import { seedActivities, demoUsers, schemes } from '../src/modules/activities/data.ts'
 import { actionFor, activitySummary, canEditDraft, csvCell, filterActivities, visibleActivities } from '../src/modules/activities/rules.ts'
 import { activitySchema, draftSchema, emptyFilters, proposalSchema, realizationSchema, type DraftValues } from '../src/modules/activities/model.ts'
@@ -159,5 +160,6 @@ assert.deepEqual(activitySchema.parse(legacy).reports, [])
 Object.defineProperty(globalThis, 'localStorage', { value: { getItem: () => null, setItem() { throw new Error('quota') } }, configurable: true })
 await assert.rejects(mockActivityRepository.saveDraft(values, demoUsers.DOSEN), /belum tersimpan/)
 await checkIncentives()
+await checkPhaseFour()
 Object.defineProperty(globalThis, 'Date', { value: NativeDate, configurable: true })
 console.log('Cek scope, wizard 8 profil, RAB desimal, berkas, snapshot revisi, laporan, capaian, konflik versi, dan migrasi draft lulus.')

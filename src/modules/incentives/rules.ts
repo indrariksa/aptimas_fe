@@ -1,4 +1,5 @@
 import { csvCell } from '../activities/rules.ts'
+import { latestPolicy, policyById, requiredClaimIssues } from '../configuration/store.ts'
 import type { DemoUser } from '../activities/model.ts'
 import { claimStatusLabels, templates, isEvidence, isIssue, isSelection, outputYearFor, periodFor, templateFor, textAnswer, type ClaimStatus, type Claim, type ClaimReview, type ClaimValues, type TemplateField } from './model.ts'
 
@@ -8,7 +9,7 @@ export function visibleClaims(claims: Claim[], user: DemoUser) {
   return claims.filter(claim => claim.status !== 'DRAFT' || user.role === 'ADMIN')
 }
 export function canEditClaim(claim: Claim, user: DemoUser) { return user.role === 'DOSEN' && claim.ownerId === user.id && ['DRAFT', 'REVISION_REQUIRED'].includes(claim.status) }
-export function canReviewClaim(claim: Claim, user: DemoUser) { return user.role === 'REVIEWER' && claim.ownerId !== user.id && claim.reviewerIds.includes(user.id) && claim.status === 'UNDER_REVIEW' }
+export function canReviewClaim(claim: Claim, user: DemoUser) { return user.role === 'REVIEWER' && claim.ownerId !== user.id && claim.reviewerIds.includes(user.id) && claim.status === 'UNDER_REVIEW' && !claim.reviews.some(r => r.reviewerId === user.id && r.submissionVersion === claim.submissions.at(-1)?.version) }
 export function fieldVisible(field: TemplateField, values: ClaimValues) {
   if (!field.showWhen || field.showWhen.startsWith('Hardfile:')) return true
   if (field.showWhen.startsWith('affiliation_declared')) return textAnswer(values, 'affiliation_declared') === 'Ya'
@@ -23,12 +24,13 @@ export function httpsUrl(value: string) {
 }
 function normalizeName(name: string) { return name.split(',')[0].replace(/^(?:(?:dr|prof)\.?\s+)+/i, '').trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID') }
 export type ClaimIssue = { key: string; message: string }
-export function claimIssues(values: ClaimValues, user: DemoUser, submit = false): ClaimIssue[] {
+export function claimIssues(values: ClaimValues, user: DemoUser, submit = false, policyId?: string | null): ClaimIssue[] {
   const errors: ClaimIssue[] = [], template = templateFor(values.categoryCode), period = periodFor(values.periodId)
   const add = (key: string, message: string) => errors.push({ key, message })
   if (!template) { add('categoryCode', 'Template kategori belum tersedia.'); return errors }
   if (!period) add('periodId', 'Pilih periode yang tersedia.')
   const allowed = new Set(template.fields.filter(field => field.actor === 'APPLICANT').map(field => field.key))
+  if (values.authorPosition && (values.categoryCode !== 'BOOK' || !/^[1-9]\d?$/.test(values.authorPosition))) add('authorPosition', 'Metadata posisi tambahan hanya berlaku untuk buku dan harus bilangan bulat positif.')
   Object.keys(values.answers).forEach(key => { if (!allowed.has(key)) add(key, 'Field identitas/reviewer atau field di luar template tidak boleh diubah oleh pengusul.') })
   const title = textAnswer(values, 'work_title').trim()
   if (!title || title.length > 500) add('work_title', 'Isi satu judul karya, maksimal 500 karakter.')
@@ -57,9 +59,11 @@ export function claimIssues(values: ClaimValues, user: DemoUser, submit = false)
     if (field.control === 'decimal-string' && !/^\d{1,12}(?:\.\d{1,6})?$/.test(text)) add(field.key, 'Gunakan angka desimal nonnegatif dengan titik, maksimal enam desimal.')
   }
   if (submit) {
+    const policy = policyId ? policyById(policyId) : latestPolicy('SK', values.categoryCode, values.periodId)
+    if (policy) errors.push(...requiredClaimIssues(policy, values))
     const year = outputYearFor(values)
     if (year === null || (period && (year < period.minimumPublicationYear || year > period.year))) add('outputYear', `Tahun luaran untuk periode contoh harus ${period?.minimumPublicationYear ?? 2026}–${period?.year ?? 2026}. Ketentuan LOA menunggu SOP.`)
-    const position = textAnswer(values, 'applicant_author_position'), authors = values.answers.authors
+    const position = textAnswer(values, 'applicant_author_position') || values.authorPosition, authors = values.answers.authors
     if (position && (!Array.isArray(authors) || !authors[Number(position) - 1] || normalizeName(authors[Number(position) - 1]) !== normalizeName(user.name))) add('applicant_author_position', 'Posisi harus menunjuk nama pengusul pada daftar penulis.')
   }
   return errors
@@ -91,6 +95,6 @@ export function filterClaims(claims: Claim[], filters: typeof emptyClaimFilters)
   return claims.filter(claim => (!query || `${claim.title} ${claim.code} ${claim.identity.name}`.toLocaleLowerCase('id-ID').includes(query)) && (!filters.category || claim.categoryCode === filters.category) && (!filters.year || String(claim.outputYear) === filters.year) && (!filters.status || claim.status === filters.status) && (!filters.studyProgram || claim.identity.studyProgram === filters.studyProgram))
 }
 export function claimCsv(claims: Claim[]) {
-  const rows = [['Kode', 'Kategori', 'Judul', 'Pengusul', 'NIDN/NUPTK', 'Prodi', 'Tahun luaran', 'Status', 'Nominal', 'Versi template', 'Tanggal pengajuan', 'Sumber data'], ...claims.map(claim => [claim.code, templates.find(template => template.code === claim.categoryCode)?.label, claim.title, claim.identity.name, claim.identity.academicId, claim.identity.studyProgram, claim.outputYear, claimStatusLabels[claim.status], 'Menunggu Konfigurasi SK', claim.templateVersionId, claim.submittedAt, 'DATA SIMULASI'])]
+  const rows = [['Kode', 'Kategori', 'Judul', 'Pengusul', 'NIDN/NUPTK', 'Prodi', 'Tahun luaran', 'Status', 'Quote SK', 'Nominal disetujui', 'Versi SK', 'Batch', 'Versi template', 'Tanggal pengajuan', 'Status terbit', 'Posisi penulis', 'Pemeriksaan', 'Komentar reviewer', 'Metadata kategori', 'Catatan admin', 'Sumber data'], ...claims.map(claim => [claim.code, templates.find(template => template.code === claim.categoryCode)?.label, claim.title, claim.identity.name, claim.identity.academicId, claim.identity.studyProgram, claim.outputYear, claimStatusLabels[claim.status], claim.quotedAmount === null ? 'Menunggu Konfigurasi SK' : claim.quotedAmount.toFixed(2), claim.approvedAmount === null ? 'Belum diputuskan' : claim.approvedAmount.toFixed(2), claim.ruleVersionId, claim.batchId, claim.templateVersionId, claim.submittedAt, textAnswer(claim.values, 'publication_status'), textAnswer(claim.values, 'applicant_author_position') || claim.values.authorPosition, claim.reviews.map(r => `${r.actor}: v${r.submissionVersion}, Ya ${Object.values(r.checks).filter(v => v === 'Ya').length}, Tidak ${Object.values(r.checks).filter(v => v === 'Tidak').length}`).join(' | '), claim.reviews.map(r => r.comment).join(' | '), JSON.stringify(claim.values.answers), claim.note, 'DATA SIMULASI'])]
   return '\uFEFF' + rows.map(row => row.map(csvCell).join(';')).join('\r\n')
 }

@@ -517,3 +517,18 @@ tbody tr:hover { background: #f9fbfe; }
 .claim-recap { padding: 24px; border-bottom: 1px solid var(--border); }
 @media (min-width: 720px) { .claim-category-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1000px) { .claim-issue-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.checkbox-label { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding-block: 10px; font-size: .87rem; cursor: pointer; overflow-wrap: anywhere; }
+.checkbox-label input[type="checkbox"] { width: 20px; height: 20px; min-height: 20px; margin-top: 2px; flex: 0 0 20px; accent-color: var(--primary); }
+.checklist-grid, .rubric-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 24px; margin-block: 22px; }
+.config-panel > .table-tabs { margin-bottom: 24px; }
+.config-panel form > fieldset > .field, .detail-content fieldset .field { margin-block: 20px; }
+.config-panel .form-grid, .detail-content fieldset .form-grid { margin-block: 20px; }
+.config-panel .form-grid > .field, .detail-content fieldset .form-grid > .field, .rubric-fields > .field { margin: 0; }
+.config-panel .scheme-list li { flex-wrap: wrap; }
+.config-panel .scheme-list .button { margin-left: auto; }
+.declaration { margin-block: 22px; border-top: 1px solid var(--border); padding-top: 22px; }
+.reference-link { display: inline-block; padding-block: 12px; min-height: 44px; color: var(--blue); text-decoration: underline; overflow-wrap: anywhere; }
+.detail-content .form-section > .button { margin-top: 14px; }
+.config-panel, .detail-content { overflow-wrap: anywhere; }
+@media (min-width: 720px) { .checklist-grid, .rubric-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .rubric-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

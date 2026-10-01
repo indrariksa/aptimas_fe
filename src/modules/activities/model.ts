@@ -64,6 +64,7 @@ export const activitySchema = z.object({
   profileVersionId: z.string().nullable().default(null), workflowPolicyId: z.string().nullable().default(null),
   reviewDrafts: z.array(activityReviewSchema).default([]), reviews: z.array(activityReviewSchema.extend({ at: z.string().datetime(), actor: z.string() })).default([]),
   externalUpdates: z.array(z.object({ at: z.string().datetime(), actor: z.string(), status: z.string(), url: z.string(), evidenceDate: z.iso.date(), files: z.array(fileSchema), funded: z.boolean(), sourceOfTruth: z.literal('EXTERNAL_MANUAL') })).default([]),
+  assignments: z.array(z.object({ stage: activityReviewSchema.shape.stage, submissionVersion: z.number().int().positive(), policyId: z.string(), reviewerIds: z.array(z.string()), at: z.string().datetime(), actor: z.string() })).default([]),
 })
 export type Activity = z.infer<typeof activitySchema>
 

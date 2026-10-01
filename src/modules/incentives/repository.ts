@@ -4,8 +4,10 @@ import { ensureFiles } from '../activities/files.ts'
 import { seedClaims } from './data.ts'
 import { claimSchema, claimValuesSchema, incentiveManifest, outputYearFor, periodFor, templateFor, textAnswer, type Claim, type ClaimRepository, type ClaimValues } from './model.ts'
 import { canEditClaim, canReviewClaim, claimFiles, claimIssues, claimWindowOpen, duplicateClaim, reviewIssues } from './rules.ts'
+import { policyById, quoteClaim, requireAccount } from '../configuration/store.ts'
 
 export const CLAIM_STORAGE_KEY = 'aptimas.demo.claims.v1'
+export { read as readClaims, replace as replaceClaim }
 function read(): Claim[] {
   const stored = localStorage.getItem(CLAIM_STORAGE_KEY)
   if (!stored) return structuredClone(seedClaims)
@@ -19,8 +21,9 @@ function write(claims: Claim[]) {
 function checkVersion(claim: Claim, expected?: number) { if (expected !== undefined && claim.version !== expected) throw new Error('Klaim berubah di tab lain. Pertahankan salinan isian, lalu muat ulang sebelum menyimpan kembali.') }
 function replace(claims: Claim[], claim: Claim) { write(claims.some(item => item.id === claim.id) ? claims.map(item => item.id === claim.id ? claim : item) : [claim, ...claims]); return claim }
 async function save(input: ClaimValues, user: DemoUser, id: string | undefined, expected: number | undefined, submit: boolean) {
+  requireAccount(user)
   if (user.role !== 'DOSEN') throw new Error('Hanya Dosen dapat menyimpan klaim miliknya.')
-  const values = claimValuesSchema.parse(input), template = templateFor(values.categoryCode), errors = claimIssues(values, user, submit)
+  const values = claimValuesSchema.parse(input), template = templateFor(values.categoryCode), previousPolicyId = id ? read().find(c => c.id === id)?.ruleVersionId : undefined, errors = claimIssues(values, user, submit, previousPolicyId)
   if (errors.length || !template) throw new Error(errors[0]?.message ?? 'Template tidak tersedia.')
   if (submit) await ensureFiles(claimFiles(values, true))
   const claims = read(), previous = id ? claims.find(item => item.id === id) : undefined
@@ -31,10 +34,11 @@ async function save(input: ClaimValues, user: DemoUser, id: string | undefined, 
   }
   if (submit && !claimWindowOpen(values.periodId)) throw new Error('Window periode simulasi ditutup. Draft tetap dapat disimpan.')
   if (submit && duplicateClaim(claims, values, user.id, id)) throw new Error('Judul karya ini sudah diajukan oleh pengusul pada tahun luaran yang sama. Periksa klaim sebelumnya.')
+  const quote = quoteClaim(values, previous?.ruleVersionId)
   const at = new Date().toISOString(), identity = { id: user.id, name: user.name, academicId: user.academicId, studyProgram: user.studyProgram }
-  const status = submit ? previous?.status === 'REVISION_REQUIRED' ? 'ADMIN_CHECK' : textAnswer(values, 'publication_status') === 'LOA' ? 'PENDING_POLICY_REVIEW' : 'SUBMITTED' : previous?.status ?? 'DRAFT'
+  const status = submit ? previous?.status === 'REVISION_REQUIRED' ? 'ADMIN_CHECK' : textAnswer(values, 'publication_status') === 'LOA' && !quote.policy?.allowLOA ? 'PENDING_POLICY_REVIEW' : 'SUBMITTED' : previous?.status ?? 'DRAFT'
   return replace(claims, claimSchema.parse({ ...previous, id: previous?.id ?? crypto.randomUUID(), code: previous?.code ?? `IK-${periodFor(values.periodId)!.year}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`, ownerId: user.id, identity, categoryCode: template.code, templateVersionId: `${incentiveManifest.schemaVersion}:${template.code}`, periodId: values.periodId, title: textAnswer(values, 'work_title').trim(), outputYear: outputYearFor(values), status, values, reviewerIds: previous?.reviewerIds ?? [], note: previous?.note ?? '', version: (previous?.version ?? 0) + 1,
-    createdAt: previous?.createdAt ?? at, updatedAt: at, submittedAt: submit ? at : previous?.submittedAt ?? null, ruleVersionId: null, quotedAmount: null, approvedAmount: null, batchId: null,
+    createdAt: previous?.createdAt ?? at, updatedAt: at, submittedAt: submit ? at : previous?.submittedAt ?? null, ruleVersionId: submit ? quote.policy?.id ?? null : previous?.ruleVersionId ?? null, quotedAmount: submit ? quote.amount : previous?.quotedAmount ?? null, approvedAmount: null, batchId: null,
     submissions: submit ? [...(previous?.submissions ?? []), { version: (previous?.submissions.length ?? 0) + 1, at, identity, values: structuredClone(values) }] : previous?.submissions ?? [],
     reviewDrafts: submit ? [] : previous?.reviewDrafts ?? [], reviews: previous?.reviews ?? [],
     history: [...(previous?.history ?? []), { at, actor: user.name, description: submit ? previous?.status === 'REVISION_REQUIRED' ? 'Revisi klaim diajukan (simulasi).' : status === 'PENDING_POLICY_REVIEW' ? 'Klaim LOA dicatat; kelayakan menunggu kebijakan.' : 'Klaim diajukan (simulasi).' : 'Draft klaim disimpan.' }],
@@ -45,16 +49,19 @@ export const mockClaimRepository: ClaimRepository = {
   async saveDraft(values, user, id, expected) { return save(values, user, id, expected, false) },
   async submit(values, user, id, expected) { return save(values, user, id, expected, true) },
   async saveReview(id, input, user, expected, finish) {
+    requireAccount(user)
     const claims = read(), previous = claims.find(item => item.id === id)
     if (!previous || !canReviewClaim(previous, user)) throw new Error('Review hanya dapat disimpan reviewer yang ditugaskan saat klaim Dalam review.')
     checkVersion(previous, expected)
     const parsed = claimSchema.shape.reviewDrafts.element.parse(input), errors = reviewIssues(previous, parsed, user, finish)
     if (errors.length) throw new Error(errors[0])
     const at = new Date().toISOString()
-    return replace(claims, claimSchema.parse({ ...previous, updatedAt: at, version: previous.version + 1, status: finish ? 'REVIEW_COMPLETED' : previous.status,
+    const reviews = finish ? [...previous.reviews, { ...structuredClone(parsed), at, actor: user.name, version: previous.reviews.length + 1 }] : previous.reviews
+    const policy = policyById(previous.ruleVersionId), complete = previous.reviewerIds.length === (policy?.reviewerCount ?? 1) && previous.reviewerIds.every(id => reviews.some(r => r.reviewerId === id && r.submissionVersion === parsed.submissionVersion))
+    return replace(claims, claimSchema.parse({ ...previous, updatedAt: at, version: previous.version + 1, status: finish && complete ? 'REVIEW_COMPLETED' : previous.status,
       reviewDrafts: [...previous.reviewDrafts.filter(item => item.reviewerId !== user.id), structuredClone(parsed)],
-      reviews: finish ? [...previous.reviews, { ...structuredClone(parsed), at, actor: user.name, version: previous.reviews.length + 1 }] : previous.reviews,
-      history: [...previous.history, { at, actor: user.name, description: finish ? 'Pemeriksaan butir selesai; keputusan final menunggu SK/SOP.' : 'Draft checklist reviewer disimpan.' }],
+      reviews,
+      history: [...previous.history, { at, actor: user.name, description: finish ? 'Pemeriksaan butir selesai; keputusan final terpisah menurut otoritas SK/SOP.' : 'Draft checklist reviewer disimpan.' }],
     }))
   },
   async reset() { localStorage.removeItem(CLAIM_STORAGE_KEY) },

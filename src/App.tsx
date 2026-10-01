@@ -10,6 +10,7 @@ import { ClaimsPage } from './pages/claims.tsx'
 import { ClaimFormPage } from './pages/claim-form.tsx'
 import { ClaimDetailPage } from './pages/claim-detail.tsx'
 import { Configuration } from './pages/configuration.tsx'
+import { WorksPage, WorkDetailPage, WorkFormPage } from './pages/creative-works.tsx'
 import { EmptyState } from './components/shared.tsx'
 import { Button } from './components/ui/button.tsx'
 
@@ -32,6 +33,14 @@ const router = createBrowserRouter([
     { path: '/incentives/:id', element: <ClaimDetailPage /> },
     { path: '/incentives/:id/edit', element: <ClaimFormPage /> },
     { path: '/configuration', element: <Configuration /> },
+    { path: '/admin/config', element: <Navigate to="/configuration" replace /> },
+    { path: '/reviews/activities', element: <ActivityList /> },
+    { path: '/incentives/review', element: <ClaimsPage /> },
+    { path: '/incentives/recap', element: <ClaimsPage /> },
+    { path: '/creative-works', element: <WorksPage /> },
+    { path: '/creative-works/new', element: <WorkFormPage /> },
+    { path: '/creative-works/:id', element: <WorkDetailPage /> },
+    { path: '/creative-works/:id/edit', element: <WorkFormPage /> },
     { path: '*', element: <EmptyState title="Halaman tidak ditemukan" description="Alamat ini belum tersedia. Kembali ke dashboard untuk melanjutkan." action={<Button asChild><Link to="/dashboard">Kembali ke dashboard</Link></Button>} /> },
   ] },
 ])

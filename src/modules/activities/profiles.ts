@@ -13,7 +13,7 @@ const domainSections: Record<Domain, string[]> = {
   COMMUNITY_SERVICE: ['analisis_situasi', 'permasalahan_prioritas', 'solusi', 'target_pemberdayaan', 'metode_pelaksanaan', 'partisipasi_mitra', 'evaluasi', 'keberlanjutan'],
   INNOVATION: ['tujuan', 'metodologi'],
 }
-export const documentLabels: Record<string, string> = { proposal: 'Proposal substansi', partner: 'Surat kemitraan / LoI / MoU', technical: 'Lampiran teknis produk', tkt: 'Bukti TKT', location: 'Bukti lokasi / peta', originality: 'Surat orisinalitas', supporting: 'Dokumen pendukung', report: 'Laporan', output: 'Bukti capaian' }
+export const documentLabels: Record<string, string> = { proposal: 'Proposal substansi', partner: 'Surat kemitraan / LoI / MoU', technical: 'Lampiran teknis produk', tkt: 'Bukti TKT', location: 'Bukti lokasi / peta', originality: 'Surat orisinalitas', supporting: 'Dokumen pendukung', report: 'Laporan', output: 'Bukti capaian', policy: 'Dokumen SK / SOP', work: 'Bukti karya', external: 'Bukti keputusan eksternal' }
 
 // Profil demo berversi; ganti dengan profil terbitan LPPM saat aturan resmi tersedia.
 export const formProfiles = Object.fromEntries(schemes.map(scheme => [scheme.id, {
@@ -32,7 +32,7 @@ export function profileFor(id: string, versionId?: string | null) {
   const baseline = formProfiles[id], policy = versionId === undefined ? latestPolicy('WORKFLOW', id) : policyById(versionId)
   if (!policy || policy.kind !== 'WORKFLOW' || policy.scope !== id) return baseline
   const cap = decimalUnits(policy.profile.budgetCap, 2)
-  return { ...baseline, id: policy.id, maxWords: policy.profile.maxWords, summaryWords: policy.profile.summaryWords, budgetCap: cap === null ? baseline.budgetCap : Number(cap) / 100, windows: policy.profile.windows }
+  return { ...baseline, id: policy.id, maxWords: policy.profile.maxWords, summaryWords: policy.profile.summaryWords, budgetCap: cap === null ? baseline.budgetCap : Number(cap) / 100, categories: policy.profile.categories.length ? policy.profile.categories : baseline.categories, outputKinds: policy.profile.outputKinds.length ? policy.profile.outputKinds : baseline.outputKinds, windows: policy.profile.windows, revisionTarget: policy.revisionTarget }
 }
 export function words(value: string) { return value.trim() ? value.trim().split(/\s+/).length : 0 }
 export function keywordList(value: string) { return value.split(',').map(item => item.trim()).filter(Boolean) }

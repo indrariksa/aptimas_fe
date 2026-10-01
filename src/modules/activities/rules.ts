@@ -1,9 +1,13 @@
-import type { Activity, ActivityFilters, DemoUser } from './model.ts'
+import type { Activity, ActivityFilters, ActivityReview, DemoUser } from './model.ts'
 
 export function visibleActivities(activities: Activity[], user: DemoUser) {
   if (user.role === 'DOSEN') return activities.filter(activity => activity.ownerId === user.id)
-  if (user.role === 'REVIEWER') return activities.filter(activity => activity.reviewerIds.includes(user.id))
+  if (user.role === 'REVIEWER') return activities.filter(activity => activity.reviewerIds.includes(user.id) || activity.assignments.some(a => a.reviewerIds.includes(user.id)))
   return activities.filter(activity => activity.status !== 'DRAFT' || user.role === 'ADMIN')
+}
+export function canReadActivityStage(activity: Activity, user: DemoUser, stage: ActivityReview['stage'], version: number) {
+  if (user.role !== 'REVIEWER') return true
+  return activity.assignments.some(a => a.stage === stage && a.submissionVersion === version && a.reviewerIds.includes(user.id)) || (!activity.assignments.length && activity.reviewerIds.includes(user.id))
 }
 
 export function canEditDraft(activity: Activity, user: DemoUser) {
@@ -32,7 +36,7 @@ export function activitySummary(activities: Activity[]) {
 }
 
 export function actionFor(activity: Activity, user: DemoUser): { label: string; description: string } | null {
-  if (user.role === 'REVIEWER') return activity.status === 'UNDER_REVIEW' ? { label: 'Periksa penugasan', description: 'Pengajuan menunggu pemeriksaan reviewer.' } : null
+  if (user.role === 'REVIEWER') return activity.reviewerIds.includes(user.id) && ['UNDER_REVIEW', 'PROGRESS_SUBMITTED', 'FINAL_SUBMITTED', 'OUTPUT_PENDING'].includes(activity.status) ? { label: 'Periksa penugasan', description: 'Pengajuan menunggu pemeriksaan reviewer.' } : null
   if (user.role === 'DOSEN') {
     if (['REVISION_REQUIRED', 'NEEDS_CORRECTION'].includes(activity.status)) return { label: 'Lihat catatan', description: activity.note }
     if (activity.status === 'DRAFT') return { label: 'Lanjutkan draft', description: 'Lengkapi tim, substansi, RAB, dan dokumen sebelum mengajukan.' }
